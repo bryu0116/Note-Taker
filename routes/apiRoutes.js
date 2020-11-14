@@ -1,27 +1,57 @@
-const router = require("express").Router();
-const store = require("../db/store");
+const fs = require("fs");
+const noteData = require("../db/db.json");
 
-// GET "/api/notes" responds with all notes from the database
-router.get("/notes", function(req, res) {
-  store
-    .getNotes()
-    .then(notes => res.json(notes))
-    .catch(err => res.status(500).json(err));
-});
+module.exports = (app) => {
+  // the GET api
+  app.get("/api/notes", (req, res) => {
+    fs.readFile("./db/db.json", "utf-8", (err, data) => {
+      if (err) throw err;
+      res.json(JSON.parse(data));
+    });
+  });
 
-router.post("/notes", (req, res) => {
-  store
-    .addNote(req.body)
-    .then((note) => res.json(note))
-    .catch(err => res.status(500).json(err));
-});
+  // the POST api
+  app.post("/api/notes", (req, res) => {
+    let newNote = {
+      title: req.body.title,
+      text: req.body.text,
+    };
+    newNote.id = Math.floor(Math.random() * 1000000000);
 
-// DELETE "/api/notes" deletes the note with an id equal to req.params.id
-router.delete("/notes/:id", function(req, res) {
-  store
-    .removeNote(req.params.id)
-    .then(() => res.json({ ok: true }))
-    .catch(err => res.status(500).json(err));
-});
+    fs.readFile("./db/db.json", "utf-8", (err, notesData) => {
+      if (err) {
+        throw err;
+      }
 
-module.exports = router;
+      let notesInfo = JSON.parse(notesData);
+      notesInfo.push(newNote);
+
+      fs.writeFile(
+        "./db/db.json",
+        JSON.stringify(notesInfo, null, 2),
+        (err) => {
+          if (err) throw err;
+          res.send(notesInfo);
+        }
+      );
+    });
+  });
+
+  // the DELETE api
+  app.delete("/api/notes/:id", (req, res) => {
+    let id = req.params.id;
+
+    fs.readFile("./db/db.json", "utf-8", (err, notesInfo) => {
+      let note = JSON.parse(notesInfo);
+      let newNotesInfo = note.filter((note) => note.id != id);
+      fs.writeFile(
+        "./db/db.json",
+        JSON.stringify(newNotesInfo, null, 2),
+        (err) => {
+          if (err) throw err;
+          res.send(newNotesInfo);
+        }
+      );
+    });
+  });
+};
